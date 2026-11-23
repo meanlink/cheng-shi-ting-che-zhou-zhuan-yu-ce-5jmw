@@ -2,7 +2,7 @@ import {api, state} from '../api.js';
 import {esc} from '../utils.js';
 import {closeoutPage} from './closeout.js';
 import {dispatchPage} from './dispatch.js';
-import {gatePage} from './gate.js';
+import {gatePage, bindBackfillRows, bindBackfillDetail} from './gate.js';
 import {windowActions} from './labels.js';
 import {bindForecastTarget} from './request-form.js';
 
@@ -22,6 +22,7 @@ function notice(message) {
 }
 
 function payload(form) {
+    if (form.dataset.overflowForm === 'backfill') return backfillPayload(form);
     const body = Object.fromEntries(new FormData(form));
     for (const key of ['bay_limit', 'admitted', 'released', 'counted_admitted', 'counted_released']) {
         if (key in body) body[key] = Number(body[key]);
@@ -32,16 +33,37 @@ function payload(form) {
     return body;
 }
 
+function backfillPayload(form) {
+    const rows = [...form.querySelectorAll('.backfill-row')];
+    return {
+        reference: form.elements.reference.value.trim(),
+        records: rows.map(row => ({
+            receipt: row.elements.receipt.value.trim(),
+            occurred_at: toUtc(row.elements.occurred_at.value),
+            admitted: Number(row.elements.admitted.value),
+            released: Number(row.elements.released.value),
+        })),
+    };
+}
+
 function endpoint(form) {
     const {overflowForm, windowId, path} = form.dataset;
     if (overflowForm === 'decision') return path;
     if (overflowForm === 'gate') return `${base}/${windowId}/gate`;
+    if (overflowForm === 'backfill') return `${base}/${windowId}/backfill`;
     if (overflowForm === 'tally') return `${base}/${windowId}/closeout`;
     return base;
 }
 
+const backfillMessages = {
+    suspended: '整批挂起：未改动在线车数，可在下方查看挂起原因。',
+    applied: '补传已按实际过闸时间插回在线流水。',
+    variance_only: '窗口已结案，补传仅保留差异，原盘点不变。',
+};
+
 function bindForms(root, reload) {
     bindForecastTarget(root.querySelector('[data-overflow-form="window"]'));
+    bindBackfillRows(root);
     for (const form of root.querySelectorAll('[data-overflow-form]')) {
         form.addEventListener('submit', async event => {
             event.preventDefault();
@@ -52,7 +74,10 @@ function bindForms(root, reload) {
             try {
                 const result = await api(endpoint(form), {method: 'POST', body: payload(form)});
                 form.closest('dialog')?.close();
-                await reload(result.status === 'flagged' ? '已保存差异版本，请核对台账。' : '已保存。');
+                const message = form.dataset.overflowForm === 'backfill' ?
+                    (backfillMessages[result.status] || '补传已提交。') :
+                    (result.status === 'flagged' ? '已保存差异版本，请核对台账。' : '已保存。');
+                await reload(message);
             } catch (error) {
                 status.textContent = error.message;
                 status.classList.add('error');
@@ -105,6 +130,7 @@ export async function showOverflow(page, shell, isCurrent, message = '') {
         });
         bindForms(root, feedback => showOverflow(page, shell, isCurrent, feedback));
         bindDecisions(root);
+        bindBackfillDetail(root, api);
     } catch (error) {
         if (isCurrent()) shell(`<div class="form-status error" role="alert">${esc(error.message)}</div>`);
     }

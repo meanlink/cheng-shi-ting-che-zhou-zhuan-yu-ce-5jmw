@@ -2,10 +2,11 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from . import overflow_closeout, overflow_gate, overflow_queries, overflow_windows
+from . import overflow_backfill, overflow_closeout, overflow_gate, overflow_queries, overflow_windows
 from .auth import current_user, require
 from .contracts import Role
-from .overflow_input import CloseoutIn, DecisionIn, GateBatchIn, WindowIn
+from .db import connect
+from .overflow_input import BackfillIn, CloseoutIn, DecisionIn, GateBatchIn, WindowIn
 from .overflow_windows import WindowAction
 
 router = APIRouter(prefix='/overflow', tags=['overflow'])
@@ -40,6 +41,22 @@ def gate(window_id: int, user=Depends(current_user)):
 @router.post('/windows/{window_id}/gate', status_code=201)
 def record_batch(window_id: int, item: GateBatchIn, user=Depends(operator)):
     return overflow_gate.record_batch(window_id, item, user['email'])
+
+
+@router.get('/windows/{window_id}/backfill')
+def backfills(window_id: int, user=Depends(current_user)):
+    with connect() as conn:
+        return overflow_backfill.list_backfills(conn, window_id)
+
+
+@router.get('/windows/{window_id}/backfill/{backfill_id}')
+def backfill_detail(window_id: int, backfill_id: int, user=Depends(current_user)):
+    return overflow_queries.backfill_detail(window_id, backfill_id)
+
+
+@router.post('/windows/{window_id}/backfill', status_code=201)
+def submit_backfill(window_id: int, item: BackfillIn, user=Depends(operator)):
+    return overflow_backfill.submit_backfill(window_id, item, user['email'])
 
 
 @router.get('/windows/{window_id}/closeout')

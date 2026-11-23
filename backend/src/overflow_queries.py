@@ -28,7 +28,22 @@ def gate_history(window_id):
         window = window_record(conn, window_id)
         batches = conn.execute('''SELECT * FROM overflow_gate_batch WHERE window_id=%s
             ORDER BY id DESC LIMIT 100''', (window_id,)).fetchall()
-        return {'window': window, 'batches': batches}
+        backfills = conn.execute('''SELECT b.*,
+            (SELECT count(*) FROM overflow_backfill_record r WHERE r.backfill_id=b.id) AS record_total
+            FROM overflow_backfill_batch b WHERE b.window_id=%s
+            ORDER BY b.submitted_at DESC, b.id DESC''', (window_id,)).fetchall()
+        return {'window': window, 'batches': batches, 'backfills': backfills}
+
+
+def backfill_detail(window_id, backfill_id):
+    with connect() as conn:
+        conn.execute('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY')
+        window = window_record(conn, window_id)
+        batch = fetch(conn, '''SELECT * FROM overflow_backfill_batch WHERE id=%s AND window_id=%s''',
+                      (backfill_id, window_id), '补传批次不存在')
+        records = conn.execute('''SELECT * FROM overflow_backfill_record WHERE backfill_id=%s
+            ORDER BY occurred_at, id''', (backfill_id,)).fetchall()
+        return {'window': window, 'batch': batch, 'records': records}
 
 
 def closeout_history(window_id):

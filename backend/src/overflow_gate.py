@@ -20,8 +20,10 @@ def record_batch(window_id, item, actor):
 
         parked = movement_balance(window, item, datetime.now(timezone.utc))
         row = conn.execute('''INSERT INTO overflow_gate_batch
-            (window_id,receipt,admitted,released,parked_after,recorded_by) VALUES (%s,%s,%s,%s,%s,%s)
-            RETURNING *''', (window_id, item.receipt, item.admitted, item.released, parked, actor)).fetchone()
+            (window_id,receipt,admitted,released,parked_after,recorded_by,occurred_at,source)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,'online')
+            RETURNING *''', (window_id, item.receipt, item.admitted, item.released, parked, actor,
+                             datetime.now(timezone.utc))).fetchone()
         conn.execute('''UPDATE overflow_window SET admitted=admitted+%s,released=released+%s,
             peak_parked=greatest(peak_parked,%s) WHERE id=%s''', (item.admitted, item.released, parked, window_id))
         audit(conn, actor, 'overflow_gate_batch', row['id'], 'recorded',

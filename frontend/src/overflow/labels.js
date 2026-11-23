@@ -15,6 +15,17 @@ export const closeoutStatus = {
     accepted: ['已通过', 'good'],
 };
 
+export const backfillStatus = {
+    applied: ['已插回流水', 'good'],
+    suspended: ['整批挂起', 'critical'],
+    variance_only: ['仅留差异', 'watch'],
+};
+
+export const batchSource = {
+    online: '在线登记',
+    backfill: '断网补传',
+};
+
 const clock = new Intl.DateTimeFormat('zh-CN', {
     hour: '2-digit', minute: '2-digit', timeZone: 'UTC', hourCycle: 'h23',
 });

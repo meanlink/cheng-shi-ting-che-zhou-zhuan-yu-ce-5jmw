@@ -76,5 +76,11 @@ def change(window_id, action, actor, note):
             (after.value, actor if action == WindowAction.APPROVE else None,
              now if action == WindowAction.OPEN else None, now if action == WindowAction.END else None,
              note if action == WindowAction.PAUSE else None, window_id))
+        if action == WindowAction.PAUSE:
+            conn.execute('''INSERT INTO overflow_window_pause (window_id,paused_at,reason)
+                VALUES (%s,%s,%s)''', (window_id, now, note))
+        elif action == WindowAction.RESUME:
+            conn.execute('''UPDATE overflow_window_pause SET resumed_at=%s
+                WHERE window_id=%s AND resumed_at IS NULL''', (now, window_id))
         audit(conn, actor, 'overflow_window', window_id, action.value, note)
         return window_record(conn, window_id)

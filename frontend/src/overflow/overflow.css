@@ -174,3 +174,35 @@
 @media (max-width: 480px) {
     .overflow-fields-three, .overflow-gate-form { grid-template-columns: minmax(0, 1fr); }
 }
+.backfill-rows {
+    display: grid;
+    gap: .65rem;
+}
+.backfill-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.4fr) repeat(2, minmax(0, .7fr)) auto;
+    gap: .6rem;
+    align-items: end;
+    border: 1px dashed var(--line);
+    padding: .6rem;
+    background: var(--teal2);
+}
+.backfill-row label {
+    display: grid;
+    gap: .25rem;
+    font-size: .78rem;
+    color: var(--muted);
+    font-weight: 700;
+}
+.backfill-card .overflow-warning {
+    margin: .4rem 0;
+}
+.backfill-detail {
+    margin: .6rem 0;
+}
+@media (max-width: 800px) {
+    .backfill-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 480px) {
+    .backfill-row { grid-template-columns: minmax(0, 1fr); }
+}
